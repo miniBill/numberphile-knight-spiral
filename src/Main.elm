@@ -115,9 +115,7 @@ view model =
 
 viewBoard : Board -> Html Msg
 viewBoard board =
-    (viewBoardCells board
-        ++ viewOpenList board
-    )
+    ({- viewOpenList board ++ -} viewBoardCells board)
         |> S.svg
             [ Html.Attributes.style "width" "50%"
             , Html.Attributes.style "margin" "auto"
@@ -297,54 +295,58 @@ computeHelp queue pieces board =
 
 step : Piece -> Board -> Maybe Board
 step headPiece board =
-    case
-        Dict.stoppableFoldl
-            (\s ( x, y, existing ) _ ->
-                case existing of
-                    Just color ->
-                        if color == headPiece.color then
-                            Dict.Stop (Just ( s, x, y ))
-
-                        else
-                            Dict.Continue Nothing
-
-                    Nothing ->
-                        Dict.Stop (Just ( s, x, y ))
-            )
-            Nothing
-            board.openList
-    of
+    case findOpenCell headPiece board of
         Nothing ->
             Nothing
 
         Just ( s, x, y ) ->
-            let
-                newOpenList =
-                    List.foldl
-                        (\( dx, dy ) acc ->
-                            let
-                                ds =
-                                    toSpiral (x + dx) (y + dy)
-                            in
-                            case Dict.get ds acc of
-                                Nothing ->
-                                    acc
-
-                                Just ( ex, ey, Nothing ) ->
-                                    Dict.insert ds ( ex, ey, Just headPiece.color ) acc
-
-                                Just ( ex, ey, Just ec ) ->
-                                    if ec == headPiece.color then
-                                        acc
-
-                                    else
-                                        Dict.remove ds acc
-                        )
-                        (Dict.remove s board.openList)
-                        headPiece.moves
-            in
             { size = board.size
             , cells = Array.set s (Colored headPiece.color) board.cells
-            , openList = newOpenList
+            , openList = updateOpenList headPiece s x y board
             }
                 |> Just
+
+
+updateOpenList : Piece -> Int -> Int -> Int -> Board -> Dict Int ( Int, Int, Maybe Color )
+updateOpenList headPiece s x y board =
+    List.foldl
+        (\( dx, dy ) acc ->
+            let
+                ds =
+                    toSpiral (x + dx) (y + dy)
+            in
+            case Dict.get ds acc of
+                Nothing ->
+                    acc
+
+                Just ( ex, ey, Nothing ) ->
+                    Dict.insert ds ( ex, ey, Just headPiece.color ) acc
+
+                Just ( ex, ey, Just ec ) ->
+                    if ec == headPiece.color then
+                        acc
+
+                    else
+                        Dict.remove ds acc
+        )
+        (Dict.remove s board.openList)
+        headPiece.moves
+
+
+findOpenCell : Piece -> Board -> Maybe ( Int, Int, Int )
+findOpenCell headPiece board =
+    Dict.stoppableFoldl
+        (\s ( x, y, existing ) _ ->
+            case existing of
+                Just color ->
+                    if color == headPiece.color then
+                        Dict.Stop (Just ( s, x, y ))
+
+                    else
+                        Dict.Continue Nothing
+
+                Nothing ->
+                    Dict.Stop (Just ( s, x, y ))
+        )
+        Nothing
+        board.openList
