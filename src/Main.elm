@@ -18,7 +18,7 @@ import TypedSvg.Types exposing (AlignmentBaseline(..), AnchorAlignment(..), Domi
 type alias Model =
     { pieces : List Piece
     , size : Int
-    , history : List Board
+    , board : Board
     }
 
 
@@ -66,7 +66,7 @@ init =
     in
     { pieces = pieces
     , size = 7
-    , history = compute 7 pieces
+    , board = compute 7 pieces
     }
 
 
@@ -110,9 +110,7 @@ view model =
                 ]
                 []
             ]
-        , model.history
-            |> List.map (\board -> Html.li [] [ viewBoard board ])
-            |> Html.ul []
+        , viewBoard model.board
         ]
 
 
@@ -261,10 +259,13 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Size size ->
-            { model | size = size, history = compute model.size model.pieces }
+            { model
+                | size = size
+                , board = compute model.size model.pieces
+            }
 
 
-compute : Int -> List Piece -> List Board
+compute : Int -> List Piece -> Board
 compute size pieces =
     let
         halfSize =
@@ -282,10 +283,10 @@ compute size pieces =
             }
     in
     if List.isEmpty pieces then
-        [ initial ]
+        initial
 
     else
-        computeHelp pieces pieces [ initial ] initial
+        computeHelp pieces pieces initial
 
 
 allCells : Int -> (Int -> Int -> a) -> List a
@@ -303,19 +304,19 @@ allCells size f =
             )
 
 
-computeHelp : List Piece -> List Piece -> List Board -> Board -> List Board
-computeHelp queue pieces acc board =
+computeHelp : List Piece -> List Piece -> Board -> Board
+computeHelp queue pieces board =
     case queue of
         [] ->
-            computeHelp pieces pieces acc board
+            computeHelp pieces pieces board
 
         headPiece :: tailPieces ->
             case step headPiece board of
                 Nothing ->
-                    List.reverse acc
+                    board
 
                 Just newBoard ->
-                    computeHelp tailPieces pieces (newBoard :: acc) newBoard
+                    computeHelp tailPieces pieces newBoard
 
 
 step : Piece -> Board -> Maybe Board
