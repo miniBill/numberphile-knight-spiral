@@ -10,11 +10,8 @@ import Html exposing (Html)
 import Html.Attributes
 import Html.Events
 import OpenList exposing (OpenList)
-import TypedSvg as S
-import TypedSvg.Attributes as SA
-import TypedSvg.Attributes.InPx
-import TypedSvg.Core as S exposing (Svg)
-import TypedSvg.Types exposing (AlignmentBaseline(..), AnchorAlignment(..), DominantBaseline(..), Paint(..))
+import Svg as S exposing (Svg)
+import Svg.Attributes as SA
 
 
 type alias Model =
@@ -170,12 +167,15 @@ viewBoard board =
             , Html.Attributes.style "margin" "auto"
             , Html.Attributes.style "border" "1px solid black"
             , Html.Attributes.style "font-size" "0.2px"
-            , TypedSvg.Attributes.InPx.strokeWidth 0.01
-            , SA.viewBox
-                -(toFloat board.size + 0.5)
-                -(toFloat board.size + 0.5)
-                (toFloat (board.size * 2 + 1))
-                (toFloat (board.size * 2 + 1))
+            , SA.strokeWidth "0.01px"
+            , [ -(toFloat board.size + 0.5)
+              , -(toFloat board.size + 0.5)
+              , toFloat (board.size * 2 + 1)
+              , toFloat (board.size * 2 + 1)
+              ]
+                |> List.map String.fromFloat
+                |> String.join " "
+                |> SA.viewBox
             ]
 
 
@@ -186,10 +186,10 @@ viewOpenList board =
         |> List.map
             (\( _, { x, y, color } ) ->
                 S.circle
-                    [ TypedSvg.Attributes.InPx.cx (toFloat x)
-                    , TypedSvg.Attributes.InPx.cy (toFloat y)
-                    , TypedSvg.Attributes.InPx.r 0.1
-                    , SA.fill (Paint (color |> Maybe.withDefault Color.gray))
+                    [ SA.cx (String.fromFloat (toFloat x) ++ "px")
+                    , SA.cy (String.fromFloat (toFloat y) ++ "px")
+                    , SA.r "0.1px"
+                    , SA.fill (color |> Maybe.withDefault Color.gray |> Color.toCssString)
                     ]
                     []
             )
@@ -224,10 +224,10 @@ viewCell s x y color =
     let
         rect =
             S.rect
-                [ TypedSvg.Attributes.InPx.x (toFloat x - 0.5)
-                , TypedSvg.Attributes.InPx.y (toFloat y - 0.5)
-                , TypedSvg.Attributes.InPx.width 1
-                , TypedSvg.Attributes.InPx.height 1
+                [ SA.x (String.fromFloat (toFloat x - 0.5) ++ "px")
+                , SA.y (String.fromFloat (toFloat y - 0.5) ++ "px")
+                , SA.width "1px"
+                , SA.height "1px"
                 , SA.fill (Paint color)
                 ]
                 []
@@ -239,10 +239,10 @@ viewCell s x y color =
         S.g []
             [ rect
             , S.text_
-                [ TypedSvg.Attributes.InPx.x (toFloat x)
-                , TypedSvg.Attributes.InPx.y (toFloat y)
-                , SA.textAnchor AnchorMiddle
-                , SA.dominantBaseline DominantBaselineMiddle
+                [ SA.x (String.fromFloat (toFloat x) ++ "px")
+                , SA.y (String.fromFloat (toFloat y) ++ "px")
+                , SA.textAnchor "middle"
+                , SA.dominantBaseline "middle"
                 ]
                 [ "({x}, {y}) {s}"
                     |> String.replace "{x}" (String.fromInt x)
