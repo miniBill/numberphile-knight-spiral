@@ -3,11 +3,13 @@ module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Color exposing (Color)
+import Common exposing (allCells, toSpiral)
 import FastDict as Dict exposing (Dict)
 import FastSet as Set exposing (Set)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
+import OpenList exposing (OpenList)
 import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Attributes.InPx
@@ -31,15 +33,13 @@ type alias Piece =
 type alias Board =
     { size : Int
     , cells : Array Cell
-    , openList : Dict Int ( Int, Int, Maybe Color )
+    , openList : OpenList
     }
 
 
 type Cell
     = Open
     | Colored Color
-    | Controlled Color
-    | Unusable
 
 
 type Msg
@@ -158,7 +158,9 @@ view model =
 
 viewBoard : Board -> Html Msg
 viewBoard board =
-    (viewOpenList board ++ viewBoardCells board)
+    (-- viewOpenList board ++
+     viewBoardCells board
+    )
         |> S.svg
             [ Html.Attributes.style "width" "50%"
             , Html.Attributes.style "margin" "auto"
@@ -176,14 +178,14 @@ viewBoard board =
 viewOpenList : Board -> List (Svg Msg)
 viewOpenList board =
     board.openList
-        |> Dict.toList
+        |> OpenList.toList
         |> List.map
-            (\( _, ( x, y, mc ) ) ->
+            (\( _, { x, y, color } ) ->
                 S.circle
                     [ TypedSvg.Attributes.InPx.cx (toFloat x)
                     , TypedSvg.Attributes.InPx.cy (toFloat y)
                     , TypedSvg.Attributes.InPx.r 0.1
-                    , SA.fill (Paint (mc |> Maybe.withDefault Color.gray))
+                    , SA.fill (Paint (color |> Maybe.withDefault Color.gray))
                     ]
                     []
             )
@@ -209,12 +211,6 @@ viewBoardCells board =
 
                         Just (Colored c) ->
                             c
-
-                        Just (Controlled c) ->
-                            c
-
-                        Just Unusable ->
-                            Color.gray
             in
             viewCell s x y color
 
@@ -253,34 +249,6 @@ viewCell s x y color =
             ]
 
 
-toSpiral : Int -> Int -> Int
-toSpiral x y =
-    -- Formula by Mitchell Spector, at https://math.stackexchange.com/a/1860731
-    let
-        s : Int
-        s =
-            if abs y > abs x then
-                y
-
-            else
-                x
-    in
-    if s >= 0 then
-        4 * s ^ 2 - x + y
-
-    else
-        let
-            d : Int
-            d =
-                if s - x == 0 then
-                    1
-
-                else
-                    0
-        in
-        (4 * s ^ 2) + (-1 ^ d) * (2 * s + x + y)
-
-
 update : Msg -> Model -> Model
 update msg model =
     case msg of
@@ -295,12 +263,7 @@ compute size pieces =
         initial =
             { size = size
             , cells = Array.repeat ((size * 2 + 1) ^ 2) Open
-            , openList =
-                allCells size
-                    (\x y ->
-                        ( toSpiral x y, ( x, y, Nothing ) )
-                    )
-                    |> Dict.fromList
+            , openList = OpenList.init size
             }
     in
     if List.isEmpty pieces then
@@ -308,20 +271,6 @@ compute size pieces =
 
     else
         computeHelp pieces pieces initial
-
-
-allCells : Int -> (Int -> Int -> a) -> List a
-allCells size f =
-    let
-        go : Int -> q -> (Int -> q -> q) -> q
-        go v acc inner =
-            if v > size then
-                acc
-
-            else
-                go (v + 1) (inner v acc) inner
-    in
-    go -size [] (\y yacc -> go -size yacc (\x xacc -> f x y :: xacc))
 
 
 computeHelp : List Piece -> List Piece -> Board -> Board
@@ -341,11 +290,11 @@ computeHelp queue pieces board =
 
 step : Piece -> Board -> Maybe Board
 step headPiece board =
-    case findOpenCell headPiece board of
+    case OpenList.findOpenCell headPiece.color board.openList of
         Nothing ->
             Nothing
 
-        Just ( s, x, y ) ->
+        Just { s, x, y } ->
             { size = board.size
             , cells = Array.set s (Colored headPiece.color) board.cells
             , openList = updateOpenList headPiece s x y board
@@ -353,7 +302,7 @@ step headPiece board =
                 |> Just
 
 
-updateOpenList : Piece -> Int -> Int -> Int -> Board -> Dict Int ( Int, Int, Maybe Color )
+updateOpenList : Piece -> Int -> Int -> Int -> Board -> OpenList
 updateOpenList headPiece s x y board =
     List.foldl
         (\( dx, dy ) acc ->
@@ -361,38 +310,21 @@ updateOpenList headPiece s x y board =
                 ds =
                     toSpiral (x + dx) (y + dy)
             in
-            case Dict.get ds acc of
+            case OpenList.get ds acc of
                 Nothing ->
                     acc
 
-                Just ( ex, ey, Nothing ) ->
-                    Dict.insert ds ( ex, ey, Just headPiece.color ) acc
+                Just found ->
+                    case found.color of
+                        Nothing ->
+                            OpenList.insert ds found.x found.y (Just headPiece.color) acc
 
-                Just ( ex, ey, Just ec ) ->
-                    if ec == headPiece.color then
-                        acc
+                        Just ec ->
+                            if ec == headPiece.color then
+                                acc
 
-                    else
-                        Dict.remove ds acc
+                            else
+                                OpenList.remove ds acc
         )
-        (Dict.remove s board.openList)
+        (OpenList.remove s board.openList)
         headPiece.moves
-
-
-findOpenCell : Piece -> Board -> Maybe ( Int, Int, Int )
-findOpenCell headPiece board =
-    Dict.stoppableFoldl
-        (\s ( x, y, existing ) _ ->
-            case existing of
-                Just color ->
-                    if color == headPiece.color then
-                        Dict.Stop (Just ( s, x, y ))
-
-                    else
-                        Dict.Continue Nothing
-
-                Nothing ->
-                    Dict.Stop (Just ( s, x, y ))
-        )
-        Nothing
-        board.openList
