@@ -11,14 +11,14 @@ import Html.Events
 import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Attributes.InPx
-import TypedSvg.Core as S
-import TypedSvg.Types exposing (AnchorAlignment(..), DominantBaseline(..), Paint(..))
+import TypedSvg.Core as S exposing (Svg)
+import TypedSvg.Types exposing (AlignmentBaseline(..), AnchorAlignment(..), DominantBaseline(..), Paint(..))
 
 
 type alias Model =
     { pieces : List Piece
     , size : Int
-    , board : Board
+    , history : List Board
     }
 
 
@@ -31,7 +31,7 @@ type alias Piece =
 
 type alias Board =
     { cells : Array Cell
-    , openList : Dict Int ( Int, Int )
+    , openList : Dict Int ( Int, Int, Maybe Color )
     }
 
 
@@ -60,13 +60,13 @@ init =
     let
         pieces : List Piece
         pieces =
-            [ knight Color.red
-            , knight Color.black
+            [ knight (Color.rgb 1 0.6 0.6)
+            , knight (Color.rgb 0.5 0.5 0.5)
             ]
     in
     { pieces = pieces
     , size = 7
-    , board = compute 7 pieces
+    , history = compute 7 pieces
     }
 
 
@@ -74,7 +74,7 @@ knight : Color -> Piece
 knight color =
     { name = "Knight"
     , color = color
-    , moves = [ ( 2, 1 ), ( 1, 2 ), ( 2, -1 ), ( -1, 2 ), ( -2, 1 ), ( 1, -2 ), ( -2, -1 ), ( -1, 2 ) ]
+    , moves = [ ( 2, 1 ), ( 1, 2 ), ( 2, -1 ), ( -1, 2 ), ( -2, 1 ), ( 1, -2 ), ( -2, -1 ), ( -1, -2 ) ]
     }
 
 
@@ -110,7 +110,9 @@ view model =
                 ]
                 []
             ]
-        , viewBoard model.board
+        , model.history
+            |> List.map (\board -> Html.li [] [ viewBoard board ])
+            |> Html.ul []
         ]
 
 
@@ -129,61 +131,9 @@ viewBoard board =
         halfEdge =
             edge // 2
     in
-    List.range -halfEdge halfEdge
-        |> List.concatMap
-            (\y ->
-                List.range -halfEdge halfEdge
-                    |> List.map
-                        (\x ->
-                            let
-                                s =
-                                    toSpiral x y
-
-                                color =
-                                    case Array.get s board.cells of
-                                        Nothing ->
-                                            Color.red
-
-                                        Just Open ->
-                                            Color.white
-
-                                        Just (Colored c) ->
-                                            c
-
-                                        Just (Controlled c) ->
-                                            c
-
-                                        Just Unusable ->
-                                            Color.gray
-                            in
-                            S.g []
-                                [ S.rect
-                                    [ TypedSvg.Attributes.InPx.x (toFloat x - 0.5)
-                                    , TypedSvg.Attributes.InPx.y (toFloat y - 0.5)
-                                    , TypedSvg.Attributes.InPx.width 1
-                                    , TypedSvg.Attributes.InPx.height 1
-                                    , SA.fill PaintNone
-                                    , SA.stroke (Paint color)
-                                    ]
-                                    []
-                                , S.text_
-                                    [ TypedSvg.Attributes.InPx.x (toFloat x)
-                                    , TypedSvg.Attributes.InPx.y (toFloat y)
-                                    , SA.textAnchor AnchorMiddle
-                                    , SA.dominantBaseline DominantBaselineMiddle
-                                    ]
-                                    [ S.text
-                                        ("("
-                                            ++ String.fromInt x
-                                            ++ ", "
-                                            ++ String.fromInt y
-                                            ++ ") "
-                                            ++ String.fromInt s
-                                        )
-                                    ]
-                                ]
-                        )
-            )
+    (viewBoardCells board
+        ++ viewOpenList board
+    )
         |> S.svg
             [ Html.Attributes.style "width" "50%"
             , Html.Attributes.style "margin" "auto"
@@ -192,6 +142,91 @@ viewBoard board =
             , TypedSvg.Attributes.InPx.strokeWidth 0.01
             , SA.viewBox -(toFloat halfEdge + 0.5) -(toFloat halfEdge + 0.5) (toFloat edge) (toFloat edge)
             ]
+
+
+viewOpenList : Board -> List (Svg Msg)
+viewOpenList board =
+    board.openList
+        |> Dict.toList
+        |> List.map
+            (\( _, ( x, y, mc ) ) ->
+                S.circle
+                    [ TypedSvg.Attributes.InPx.cx (toFloat x)
+                    , TypedSvg.Attributes.InPx.cy (toFloat y)
+                    , TypedSvg.Attributes.InPx.r 0.1
+                    , SA.fill (Paint (mc |> Maybe.withDefault Color.gray))
+                    ]
+                    []
+            )
+
+
+viewBoardCells : Board -> List (Svg msg)
+viewBoardCells board =
+    let
+        edge : Int
+        edge =
+            board.cells
+                |> Array.length
+                |> toFloat
+                |> sqrt
+                |> ceiling
+
+        halfEdge : Int
+        halfEdge =
+            edge // 2
+    in
+    allCells edge <|
+        \x y ->
+            let
+                s : Int
+                s =
+                    toSpiral x y
+
+                color : Color
+                color =
+                    case Array.get s board.cells of
+                        Nothing ->
+                            Color.red
+
+                        Just Open ->
+                            Color.white
+
+                        Just (Colored c) ->
+                            c
+
+                        Just (Controlled c) ->
+                            c
+
+                        Just Unusable ->
+                            Color.gray
+            in
+            viewCell s x y color
+
+
+viewCell : Int -> Int -> Int -> Color -> Svg msg
+viewCell s x y color =
+    S.g []
+        [ S.rect
+            [ TypedSvg.Attributes.InPx.x (toFloat x - 0.5)
+            , TypedSvg.Attributes.InPx.y (toFloat y - 0.5)
+            , TypedSvg.Attributes.InPx.width 1
+            , TypedSvg.Attributes.InPx.height 1
+            , SA.fill (Paint color)
+            ]
+            []
+        , S.text_
+            [ TypedSvg.Attributes.InPx.x (toFloat x)
+            , TypedSvg.Attributes.InPx.y (toFloat y)
+            , SA.textAnchor AnchorMiddle
+            , SA.dominantBaseline DominantBaselineMiddle
+            ]
+            [ "({x}, {y}) {s}"
+                |> String.replace "{x}" (String.fromInt x)
+                |> String.replace "{y}" (String.fromInt y)
+                |> String.replace "{s}" (String.fromInt s)
+                |> S.text
+            ]
+        ]
 
 
 toSpiral : Int -> Int -> Int
@@ -226,10 +261,10 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Size size ->
-            { model | size = size, board = compute model.size model.pieces }
+            { model | size = size, history = compute model.size model.pieces }
 
 
-compute : Int -> List Piece -> Board
+compute : Int -> List Piece -> List Board
 compute size pieces =
     let
         halfSize =
@@ -239,126 +274,99 @@ compute size pieces =
         initial =
             { cells = Array.repeat (size * size) Open
             , openList =
-                List.range -halfSize halfSize
-                    |> List.concatMap
-                        (\y ->
-                            List.range -halfSize halfSize
-                                |> List.map
-                                    (\x ->
-                                        ( toSpiral x y, ( x, y ) )
-                                    )
-                        )
+                allCells size
+                    (\x y ->
+                        ( toSpiral x y, ( x, y, Nothing ) )
+                    )
                     |> Dict.fromList
             }
     in
     if List.isEmpty pieces then
-        initial
+        [ initial ]
 
     else
-        computeHelp 0 0 0 North pieces pieces initial
+        computeHelp pieces pieces [ initial ] initial
 
 
-type Direction
-    = North
-    | West
-    | South
-    | East
+allCells : Int -> (Int -> Int -> a) -> List a
+allCells size f =
+    let
+        halfSize =
+            size // 2
+    in
+    List.range -halfSize halfSize
+        |> List.concatMap
+            (\y ->
+                List.range -halfSize halfSize
+                    |> List.map
+                        (\x -> f x y)
+            )
 
 
-nextDirection : Direction -> Direction
-nextDirection direction =
-    case direction of
-        North ->
-            East
+computeHelp : List Piece -> List Piece -> List Board -> Board -> List Board
+computeHelp queue pieces acc board =
+    case queue of
+        [] ->
+            computeHelp pieces pieces acc board
 
-        East ->
-            South
+        headPiece :: tailPieces ->
+            case step headPiece board of
+                Nothing ->
+                    List.reverse acc
 
-        South ->
-            West
-
-        West ->
-            North
+                Just newBoard ->
+                    computeHelp tailPieces pieces (newBoard :: acc) newBoard
 
 
-computeHelp : Int -> Int -> Int -> Direction -> List Piece -> List Piece -> Board -> Board
-computeHelp x y s direction queue pieces board =
-    if s >= Array.length board.cells then
-        board
-
-    else
-        case queue of
-            [] ->
-                computeHelp x y s direction pieces pieces board
-
-            headPiece :: tailPieces ->
-                let
-                    ( dx, dy ) =
-                        towards direction x y
-
-                    ( nx, ny ) =
-                        towards (nextDirection direction) x y
-
-                    ( newX, newY, newDirection ) =
-                        if toSpiral dx dy == s + 1 then
-                            ( dx, dy, direction )
-
-                        else if toSpiral nx ny == s + 1 then
-                            ( nx, ny, nextDirection direction )
+step : Piece -> Board -> Maybe Board
+step headPiece board =
+    case
+        Dict.stoppableFoldl
+            (\s ( x, y, existing ) _ ->
+                case existing of
+                    Just color ->
+                        if color == headPiece.color then
+                            Dict.Stop (Just ( s, x, y ))
 
                         else
+                            Dict.Continue Nothing
+
+                    Nothing ->
+                        Dict.Stop (Just ( s, x, y ))
+            )
+            Nothing
+            board.openList
+    of
+        Nothing ->
+            Nothing
+
+        Just ( s, x, y ) ->
+            let
+                newOpenList =
+                    List.foldl
+                        (\( dx, dy ) acc ->
                             let
-                                _ =
-                                    Debug.log "x" x
-
-                                _ =
-                                    Debug.log "y" y
-
-                                _ =
-                                    Debug.log "s" s
-
-                                _ =
-                                    Debug.log "dx" dx
-
-                                _ =
-                                    Debug.log "dy" dy
-
-                                _ =
-                                    Debug.log "s(dx,dy)" (toSpiral dx dy)
-
-                                _ =
-                                    Debug.log "nx" nx
-
-                                _ =
-                                    Debug.log "ny" ny
-
-                                _ =
-                                    Debug.log "s(nx,ny)" (toSpiral nx ny)
+                                ds =
+                                    toSpiral (x + dx) (y + dy)
                             in
-                            ( x, y, direction )
-                in
-                computeHelp newX
-                    newY
-                    (s + 1)
-                    newDirection
-                    tailPieces
-                    pieces
-                    { cells = board.cells
-                    , openList = board.openList
-                    }
+                            case Dict.get ds acc of
+                                Nothing ->
+                                    acc
 
+                                Just ( ex, ey, Nothing ) ->
+                                    Dict.insert ds ( ex, ey, Just headPiece.color ) acc
 
-towards : Direction -> Int -> Int -> ( Int, Int )
-towards direction x y =
-    case direction of
-        North ->
-            ( x, y - 1 )
+                                Just ( ex, ey, Just ec ) ->
+                                    if ec == headPiece.color then
+                                        acc
 
-        West ->
-            ( x - 1, y )
-
-        South ->
-            ( x, y + 1 )
-
-        East ->
-            ( x + 1, y )
+                                    else
+                                        Dict.remove ds acc
+                        )
+                        (Dict.remove s board.openList)
+                        headPiece.moves
+            in
+            { cells = Array.set s (Colored headPiece.color) board.cells
+            , openList = newOpenList
+            }
+                |> Just
