@@ -60,16 +60,23 @@ init =
     let
         pieces : List Piece
         pieces =
-            [ knight (Color.rgb 1 0.6 0.6)
-            , knight (Color.rgb 0.5 0.5 0.5)
-            ]
+            -- [ knight (Color.rgb 1 0.6 0.6)
+            -- , knight (Color.rgb 0.5 0.5 0.5)
+            -- ]
+            [ wazir Color.black
+            , ferz Color.red
+            , wazir Color.blue
+            , ferz Color.purple
 
-        -- [ knight Color.black
-        -- , knight Color.red
-        -- ]
+            -- , knight Color.black
+            -- , zebra Color.red
+            -- , dabbaba Color.red
+            -- , wazir Color.blue
+            -- , wazir Color.purple
+            ]
     in
     { pieces = pieces
-    , board = compute 7 pieces
+    , board = compute 30 pieces
     }
 
 
@@ -78,6 +85,38 @@ knight color =
     { name = "Knight"
     , color = color
     , moves = [ ( 2, 1 ), ( 1, 2 ), ( 2, -1 ), ( -1, 2 ), ( -2, 1 ), ( 1, -2 ), ( -2, -1 ), ( -1, -2 ) ]
+    }
+
+
+zebra : Color -> Piece
+zebra color =
+    { name = "Zebra"
+    , color = color
+    , moves = [ ( 2, 3 ), ( 3, 2 ), ( 2, -3 ), ( -3, 2 ), ( -2, 3 ), ( 3, -2 ), ( -2, -3 ), ( -3, -2 ) ]
+    }
+
+
+dabbaba : Color -> Piece
+dabbaba color =
+    { name = "Dabbaba"
+    , color = color
+    , moves = [ ( 0, 2 ), ( 0, -2 ), ( 2, 0 ), ( -2, 0 ) ]
+    }
+
+
+wazir : Color -> Piece
+wazir color =
+    { name = "Wazir"
+    , color = color
+    , moves = [ ( 0, 1 ), ( 0, -1 ), ( 1, 0 ), ( -1, 0 ) ]
+    }
+
+
+ferz : Color -> Piece
+ferz color =
+    { name = "Ferz"
+    , color = color
+    , moves = [ ( 1, 1 ), ( 1, -1 ), ( -1, 1 ), ( -1, -1 ) ]
     }
 
 
