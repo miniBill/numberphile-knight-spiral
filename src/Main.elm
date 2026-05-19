@@ -227,9 +227,9 @@ toSpiral x y =
 
     else
         let
-            d : number
+            d : Int
             d =
-                if s == x then
+                if s - x == 0 then
                     1
 
                 else
