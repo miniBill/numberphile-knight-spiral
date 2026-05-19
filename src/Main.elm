@@ -63,6 +63,10 @@ init =
             [ knight (Color.rgb 1 0.6 0.6)
             , knight (Color.rgb 0.5 0.5 0.5)
             ]
+
+        -- [ knight Color.black
+        -- , knight Color.red
+        -- ]
     in
     { pieces = pieces
     , board = compute 7 pieces
@@ -115,7 +119,7 @@ view model =
 
 viewBoard : Board -> Html Msg
 viewBoard board =
-    ({- viewOpenList board ++ -} viewBoardCells board)
+    (viewOpenList board ++ viewBoardCells board)
         |> S.svg
             [ Html.Attributes.style "width" "50%"
             , Html.Attributes.style "margin" "auto"
@@ -269,13 +273,16 @@ compute size pieces =
 
 allCells : Int -> (Int -> Int -> a) -> List a
 allCells size f =
-    List.range -size size
-        |> List.concatMap
-            (\y ->
-                List.range -size size
-                    |> List.map
-                        (\x -> f x y)
-            )
+    let
+        go : Int -> q -> (Int -> q -> q) -> q
+        go v acc inner =
+            if v > size then
+                acc
+
+            else
+                go (v + 1) (inner v acc) inner
+    in
+    go -size [] (\y yacc -> go -size yacc (\x xacc -> f x y :: xacc))
 
 
 computeHelp : List Piece -> List Piece -> Board -> Board
