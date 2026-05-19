@@ -64,17 +64,17 @@ init =
     let
         pieces : List Piece
         pieces =
-            [ wazir Color.black
-            , ferz Color.red
-            , wazir Color.blue
-            , ferz Color.purple
-
-            -- , knight Color.black
-            -- , zebra Color.red
-            -- , dabbaba Color.red
-            -- , wazir Color.blue
-            -- , wazir Color.purple
+            [--     wazir Color.black
+             -- , ferz Color.red
+             -- , wazir Color.blue
+             -- , ferz Color.purple
+             -- , knight Color.black
+             -- , zebra Color.red
+             -- , dabbaba Color.red
+             -- , wazir Color.blue
+             -- , wazir Color.purple
             ]
+                ++ defaultPieces
     in
     { pieces = pieces
     , board = compute 30 pieces
@@ -167,6 +167,7 @@ viewBoard board =
             , Html.Attributes.style "margin" "auto"
             , Html.Attributes.style "border" "1px solid black"
             , Html.Attributes.style "font-size" "0.2px"
+            , Html.Attributes.style "transform" "rotate(90deg) scale(-1, 1)"
             , SA.strokeWidth "0.01px"
             , [ -(toFloat board.size + 0.5)
               , -(toFloat board.size + 0.5)
@@ -330,5 +331,8 @@ updateOpenList headPiece s x y board =
                             else
                                 OpenList.remove ds acc
         )
-        (OpenList.remove s board.openList)
+        (board.openList
+            |> OpenList.remove s
+            |> OpenList.setMinForColor headPiece.color (s + 1)
+        )
         headPiece.moves
