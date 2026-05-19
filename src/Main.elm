@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (compute, defaultPieces, main)
 
 import Array exposing (Array)
 import Browser
@@ -55,14 +55,18 @@ main =
         }
 
 
+defaultPieces : List Piece
+defaultPieces =
+    [ knight Color.black
+    , knight Color.red
+    ]
+
+
 init : Model
 init =
     let
         pieces : List Piece
         pieces =
-            -- [ knight (Color.rgb 1 0.6 0.6)
-            -- , knight (Color.rgb 0.5 0.5 0.5)
-            -- ]
             [ wazir Color.black
             , ferz Color.red
             , wazir Color.blue
