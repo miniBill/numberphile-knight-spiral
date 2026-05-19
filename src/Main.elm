@@ -180,28 +180,36 @@ viewBoardCells board =
 
 viewCell : Int -> Int -> Int -> Color -> Svg msg
 viewCell s x y color =
-    S.g []
-        [ S.rect
-            [ TypedSvg.Attributes.InPx.x (toFloat x - 0.5)
-            , TypedSvg.Attributes.InPx.y (toFloat y - 0.5)
-            , TypedSvg.Attributes.InPx.width 1
-            , TypedSvg.Attributes.InPx.height 1
-            , SA.fill (Paint color)
+    let
+        rect =
+            S.rect
+                [ TypedSvg.Attributes.InPx.x (toFloat x - 0.5)
+                , TypedSvg.Attributes.InPx.y (toFloat y - 0.5)
+                , TypedSvg.Attributes.InPx.width 1
+                , TypedSvg.Attributes.InPx.height 1
+                , SA.fill (Paint color)
+                ]
+                []
+    in
+    if True then
+        rect
+
+    else
+        S.g []
+            [ rect
+            , S.text_
+                [ TypedSvg.Attributes.InPx.x (toFloat x)
+                , TypedSvg.Attributes.InPx.y (toFloat y)
+                , SA.textAnchor AnchorMiddle
+                , SA.dominantBaseline DominantBaselineMiddle
+                ]
+                [ "({x}, {y}) {s}"
+                    |> String.replace "{x}" (String.fromInt x)
+                    |> String.replace "{y}" (String.fromInt y)
+                    |> String.replace "{s}" (String.fromInt s)
+                    |> S.text
+                ]
             ]
-            []
-        , S.text_
-            [ TypedSvg.Attributes.InPx.x (toFloat x)
-            , TypedSvg.Attributes.InPx.y (toFloat y)
-            , SA.textAnchor AnchorMiddle
-            , SA.dominantBaseline DominantBaselineMiddle
-            ]
-            [ "({x}, {y}) {s}"
-                |> String.replace "{x}" (String.fromInt x)
-                |> String.replace "{y}" (String.fromInt y)
-                |> String.replace "{s}" (String.fromInt s)
-                |> S.text
-            ]
-        ]
 
 
 toSpiral : Int -> Int -> Int
