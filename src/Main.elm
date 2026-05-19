@@ -17,7 +17,6 @@ import TypedSvg.Types exposing (AlignmentBaseline(..), AnchorAlignment(..), Domi
 
 type alias Model =
     { pieces : List Piece
-    , size : Int
     , board : Board
     }
 
@@ -30,7 +29,8 @@ type alias Piece =
 
 
 type alias Board =
-    { cells : Array Cell
+    { size : Int
+    , cells : Array Cell
     , openList : Dict Int ( Int, Int, Maybe Color )
     }
 
@@ -65,7 +65,6 @@ init =
             ]
     in
     { pieces = pieces
-    , size = 7
     , board = compute 7 pieces
     }
 
@@ -105,8 +104,8 @@ view model =
         , Html.div []
             [ Html.input
                 [ Html.Attributes.type_ "number"
-                , Html.Attributes.value (String.fromInt model.size)
-                , Html.Events.onInput (\v -> v |> String.toInt |> Maybe.withDefault model.size |> Size)
+                , Html.Attributes.value (String.fromInt model.board.size)
+                , Html.Events.onInput (\v -> v |> String.toInt |> Maybe.withDefault model.board.size |> Size)
                 ]
                 []
             ]
@@ -116,19 +115,6 @@ view model =
 
 viewBoard : Board -> Html Msg
 viewBoard board =
-    let
-        edge : Int
-        edge =
-            board.cells
-                |> Array.length
-                |> toFloat
-                |> sqrt
-                |> ceiling
-
-        halfEdge : Int
-        halfEdge =
-            edge // 2
-    in
     (viewBoardCells board
         ++ viewOpenList board
     )
@@ -138,7 +124,11 @@ viewBoard board =
             , Html.Attributes.style "border" "1px solid black"
             , Html.Attributes.style "font-size" "0.2px"
             , TypedSvg.Attributes.InPx.strokeWidth 0.01
-            , SA.viewBox -(toFloat halfEdge + 0.5) -(toFloat halfEdge + 0.5) (toFloat edge) (toFloat edge)
+            , SA.viewBox
+                -(toFloat board.size + 0.5)
+                -(toFloat board.size + 0.5)
+                (toFloat (board.size * 2 + 1))
+                (toFloat (board.size * 2 + 1))
             ]
 
 
@@ -160,20 +150,7 @@ viewOpenList board =
 
 viewBoardCells : Board -> List (Svg msg)
 viewBoardCells board =
-    let
-        edge : Int
-        edge =
-            board.cells
-                |> Array.length
-                |> toFloat
-                |> sqrt
-                |> ceiling
-
-        halfEdge : Int
-        halfEdge =
-            edge // 2
-    in
-    allCells edge <|
+    allCells board.size <|
         \x y ->
             let
                 s : Int
@@ -259,21 +236,16 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Size size ->
-            { model
-                | size = size
-                , board = compute model.size model.pieces
-            }
+            { model | board = compute size model.pieces }
 
 
 compute : Int -> List Piece -> Board
 compute size pieces =
     let
-        halfSize =
-            size // 2
-
         initial : Board
         initial =
-            { cells = Array.repeat (size * size) Open
+            { size = size
+            , cells = Array.repeat ((size * 2 + 1) ^ 2) Open
             , openList =
                 allCells size
                     (\x y ->
@@ -291,14 +263,10 @@ compute size pieces =
 
 allCells : Int -> (Int -> Int -> a) -> List a
 allCells size f =
-    let
-        halfSize =
-            size // 2
-    in
-    List.range -halfSize halfSize
+    List.range -size size
         |> List.concatMap
             (\y ->
-                List.range -halfSize halfSize
+                List.range -size size
                     |> List.map
                         (\x -> f x y)
             )
@@ -367,7 +335,8 @@ step headPiece board =
                         (Dict.remove s board.openList)
                         headPiece.moves
             in
-            { cells = Array.set s (Colored headPiece.color) board.cells
+            { size = board.size
+            , cells = Array.set s (Colored headPiece.color) board.cells
             , openList = newOpenList
             }
                 |> Just
