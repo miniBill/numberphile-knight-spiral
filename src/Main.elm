@@ -228,7 +228,7 @@ viewCell s x y color =
                 , SA.y (String.fromFloat (toFloat y - 0.5) ++ "px")
                 , SA.width "1px"
                 , SA.height "1px"
-                , SA.fill (Paint color)
+                , SA.fill (Color.toCssString color)
                 ]
                 []
     in
