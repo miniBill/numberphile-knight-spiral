@@ -12,7 +12,9 @@ import FastSet as Set exposing (Set)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
+import Html.Lazy
 import IColor exposing (IColor)
+import List.Extra
 import OpenList exposing (OpenList)
 
 
@@ -23,8 +25,7 @@ type alias Model =
 
 
 type alias Piece =
-    { name : String
-    , color : IColor
+    { color : IColor
     , moves : List ( Int, Int )
     }
 
@@ -43,6 +44,7 @@ type Cell
 
 type Msg
     = Size Int
+    | ChangePiece Int (Maybe Piece)
 
 
 main : Program () Model Msg
@@ -66,17 +68,7 @@ init =
     let
         pieces : List Piece
         pieces =
-            [--     wazir Color.black
-             -- , ferz Color.red
-             -- , wazir Color.blue
-             -- , ferz Color.purple
-             -- , knight Color.black
-             -- , zebra Color.red
-             -- , dabbaba Color.red
-             -- , wazir Color.blue
-             -- , wazir Color.purple
-            ]
-                ++ defaultPieces
+            defaultPieces
     in
     { pieces = pieces
     , board = compute 30 pieces
@@ -85,40 +77,35 @@ init =
 
 knight : IColor -> Piece
 knight color =
-    { name = "Knight"
-    , color = color
+    { color = color
     , moves = [ ( 2, 1 ), ( 1, 2 ), ( 2, -1 ), ( -1, 2 ), ( -2, 1 ), ( 1, -2 ), ( -2, -1 ), ( -1, -2 ) ]
     }
 
 
 zebra : IColor -> Piece
 zebra color =
-    { name = "Zebra"
-    , color = color
+    { color = color
     , moves = [ ( 2, 3 ), ( 3, 2 ), ( 2, -3 ), ( -3, 2 ), ( -2, 3 ), ( 3, -2 ), ( -2, -3 ), ( -3, -2 ) ]
     }
 
 
 dabbaba : IColor -> Piece
 dabbaba color =
-    { name = "Dabbaba"
-    , color = color
+    { color = color
     , moves = [ ( 0, 2 ), ( 0, -2 ), ( 2, 0 ), ( -2, 0 ) ]
     }
 
 
 wazir : IColor -> Piece
 wazir color =
-    { name = "Wazir"
-    , color = color
+    { color = color
     , moves = [ ( 0, 1 ), ( 0, -1 ), ( 1, 0 ), ( -1, 0 ) ]
     }
 
 
 ferz : IColor -> Piece
 ferz color =
-    { name = "Ferz"
-    , color = color
+    { color = color
     , moves = [ ( 1, 1 ), ( 1, -1 ), ( -1, 1 ), ( -1, -1 ) ]
     }
 
@@ -132,21 +119,13 @@ view model =
         , Html.Attributes.style "gap" "8px"
         ]
         [ model.pieces
-            |> List.map
-                (\piece ->
-                    Html.li []
-                        [ Html.div
-                            [ Html.Attributes.style "width" "16px"
-                            , Html.Attributes.style "height" "16px"
-                            , Html.Attributes.style "display" "inline-block"
-                            , Html.Attributes.style "background" (IColor.toCssString piece.color)
-                            ]
-                            []
-                        , Html.text ("  " ++ piece.name ++ " ")
-                        , Html.text (Debug.toString piece.moves)
-                        ]
-                )
+            |> List.indexedMap viewPiece
             |> Html.ul []
+        , Html.button
+            [ Html.Events.onClick
+                (ChangePiece (List.length model.pieces) (Just (knight IColor.black)))
+            ]
+            [ Html.text "Add Piece" ]
         , Html.div []
             [ Html.input
                 [ Html.Attributes.type_ "number"
@@ -157,6 +136,59 @@ view model =
             ]
         , viewBoard model.board
         ]
+
+
+viewPiece : Int -> Piece -> Html Msg
+viewPiece index piece =
+    let
+        range =
+            3
+    in
+    Html.li [ Html.Attributes.style "display" "flex", Html.Attributes.style "gap" "8px" ]
+        [ Html.div
+            [ Html.Attributes.style "width" "32px"
+            , Html.Attributes.style "height" "32px"
+            , Html.Attributes.style "display" "inline-block"
+            , Html.Attributes.style "background" (IColor.toCssString piece.color)
+            ]
+            []
+        , List.range -range range
+            |> List.concatMap
+                (\y ->
+                    List.range -range range
+                        |> List.map
+                            (\x ->
+                                let
+                                    selected =
+                                        List.member ( x, y ) piece.moves
+                                in
+                                Html.button
+                                    [ Html.Attributes.style "width" "16px"
+                                    , Html.Attributes.style "height" "16px"
+                                    , if selected then
+                                        Html.Attributes.style "background-color" "black"
+
+                                      else
+                                        Html.Attributes.style "background-color" "white"
+                                    , Html.Events.onClick
+                                        (if selected then
+                                            Just { piece | moves = List.Extra.remove ( x, y ) piece.moves }
+
+                                         else
+                                            Just { piece | moves = ( x, y ) :: piece.moves }
+                                        )
+                                    ]
+                                    []
+                            )
+                )
+            |> Html.div
+                [ Html.Attributes.style "display" "grid"
+                , Html.Attributes.style "grid-template-columns"
+                    ("repeat(" ++ String.fromInt (range * 2 + 1) ++ ", 16px)")
+                ]
+        , Html.button [ Html.Events.onClick Nothing ] [ Html.text "🗑" ]
+        ]
+        |> Html.map (ChangePiece index)
 
 
 viewBoard : Board -> Html Msg
@@ -228,6 +260,24 @@ update msg model =
     case msg of
         Size size ->
             { model | board = compute size model.pieces }
+
+        ChangePiece at Nothing ->
+            { model | pieces = List.Extra.removeAt at model.pieces }
+                |> recompute
+
+        ChangePiece at (Just piece) ->
+            if at >= List.length model.pieces then
+                { model | pieces = model.pieces ++ [ piece ] }
+                    |> recompute
+
+            else
+                { model | pieces = List.Extra.setAt at piece model.pieces }
+                    |> recompute
+
+
+recompute : Model -> Model
+recompute model =
+    { model | board = compute model.board.size model.pieces }
 
 
 compute : Int -> List Piece -> Board
