@@ -1,7 +1,8 @@
-module IColor exposing (IColor, black, blue, gray, purple, red, toColor, toCssString, white)
+module IColor exposing (IColor, black, blue, fromCssString, gray, purple, red, toColor, toCssString, white)
 
 import Bitwise
 import Color exposing (Color)
+import Hex
 
 
 type alias IColor =
@@ -66,3 +67,12 @@ toColor c =
             c |> Bitwise.and 0xFF
     in
     Color.rgb255 r g b
+
+
+fromCssString : String -> Maybe IColor
+fromCssString s =
+    Result.map3 (\rr gg bb -> Bitwise.shiftLeftBy 16 rr + Bitwise.shiftLeftBy 8 gg + bb)
+        (String.slice 1 3 s |> Hex.fromString)
+        (String.slice 3 5 s |> Hex.fromString)
+        (String.slice 5 7 s |> Hex.fromString)
+        |> Result.toMaybe

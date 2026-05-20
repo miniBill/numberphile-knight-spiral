@@ -141,7 +141,24 @@ view model =
 viewPiece : Int -> Piece -> Html Msg
 viewPiece index piece =
     Html.li [ Html.Attributes.style "display" "flex", Html.Attributes.style "gap" "8px" ]
-        [ Html.div
+        [ Html.input
+            [ Html.Attributes.type_ "color"
+            , Html.Attributes.value (IColor.toCssString piece.color)
+            , Html.Events.onInput
+                (\col ->
+                    ChangePiece index
+                        (Just
+                            { piece
+                                | color =
+                                    col
+                                        |> IColor.fromCssString
+                                        |> Maybe.withDefault piece.color
+                            }
+                        )
+                )
+            ]
+            []
+        , Html.div
             [ Html.Attributes.style "width" "32px"
             , Html.Attributes.style "height" "32px"
             , Html.Attributes.style "display" "inline-block"
@@ -157,6 +174,7 @@ viewPiece index piece =
 pieceGrid : List ( Int, Int ) -> Html (List ( Int, Int ))
 pieceGrid moves =
     let
+        range : Int
         range =
             3
     in
