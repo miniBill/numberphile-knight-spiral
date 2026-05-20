@@ -2,16 +2,18 @@ module Main exposing (compute, defaultPieces, main)
 
 import Array exposing (Array)
 import Browser
-import Color exposing (Color)
+import Canvas
+import Canvas.Settings
+import Canvas.Settings.Advanced
+import Color
 import Common exposing (allCells, toSpiral)
 import FastDict as Dict exposing (Dict)
 import FastSet as Set exposing (Set)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
+import IColor exposing (IColor)
 import OpenList exposing (OpenList)
-import Svg as S exposing (Svg)
-import Svg.Attributes as SA
 
 
 type alias Model =
@@ -22,7 +24,7 @@ type alias Model =
 
 type alias Piece =
     { name : String
-    , color : Color
+    , color : IColor
     , moves : List ( Int, Int )
     }
 
@@ -36,7 +38,7 @@ type alias Board =
 
 type Cell
     = Open
-    | Colored Color
+    | Colored IColor
 
 
 type Msg
@@ -54,8 +56,8 @@ main =
 
 defaultPieces : List Piece
 defaultPieces =
-    [ knight Color.black
-    , knight Color.red
+    [ knight IColor.black
+    , knight IColor.red
     ]
 
 
@@ -81,7 +83,7 @@ init =
     }
 
 
-knight : Color -> Piece
+knight : IColor -> Piece
 knight color =
     { name = "Knight"
     , color = color
@@ -89,7 +91,7 @@ knight color =
     }
 
 
-zebra : Color -> Piece
+zebra : IColor -> Piece
 zebra color =
     { name = "Zebra"
     , color = color
@@ -97,7 +99,7 @@ zebra color =
     }
 
 
-dabbaba : Color -> Piece
+dabbaba : IColor -> Piece
 dabbaba color =
     { name = "Dabbaba"
     , color = color
@@ -105,7 +107,7 @@ dabbaba color =
     }
 
 
-wazir : Color -> Piece
+wazir : IColor -> Piece
 wazir color =
     { name = "Wazir"
     , color = color
@@ -113,7 +115,7 @@ wazir color =
     }
 
 
-ferz : Color -> Piece
+ferz : IColor -> Piece
 ferz color =
     { name = "Ferz"
     , color = color
@@ -137,7 +139,7 @@ view model =
                             [ Html.Attributes.style "width" "16px"
                             , Html.Attributes.style "height" "16px"
                             , Html.Attributes.style "display" "inline-block"
-                            , Html.Attributes.style "background" (Color.toCssString piece.color)
+                            , Html.Attributes.style "background" (IColor.toCssString piece.color)
                             ]
                             []
                         , Html.text ("  " ++ piece.name ++ " ")
@@ -159,45 +161,25 @@ view model =
 
 viewBoard : Board -> Html Msg
 viewBoard board =
-    (-- viewOpenList board ++
-     viewBoardCells board
-    )
-        |> S.svg
-            [ Html.Attributes.style "width" "50%"
-            , Html.Attributes.style "margin" "auto"
+    let
+        scale : Float
+        scale =
+            800
+    in
+    viewBoardCells scale board
+        |> (::) (Canvas.shapes [ Canvas.Settings.fill Color.white ] [ Canvas.rect ( 0, 0 ) scale scale ])
+        |> Canvas.toHtml ( ceiling scale, ceiling scale )
+            [ Html.Attributes.style "width" (String.fromInt (ceiling scale) ++ "px")
+            , Html.Attributes.style "height" (String.fromInt (ceiling scale) ++ "px")
+            , Html.Attributes.style "display" "block"
             , Html.Attributes.style "border" "1px solid black"
             , Html.Attributes.style "font-size" "0.2px"
             , Html.Attributes.style "transform" "rotate(90deg) scale(-1, 1)"
-            , SA.strokeWidth "0.01px"
-            , [ -(toFloat board.size + 0.5)
-              , -(toFloat board.size + 0.5)
-              , toFloat (board.size * 2 + 1)
-              , toFloat (board.size * 2 + 1)
-              ]
-                |> List.map String.fromFloat
-                |> String.join " "
-                |> SA.viewBox
             ]
 
 
-viewOpenList : Board -> List (Svg Msg)
-viewOpenList board =
-    board.openList
-        |> OpenList.toList
-        |> List.map
-            (\( _, { x, y, color } ) ->
-                S.circle
-                    [ SA.cx (String.fromFloat (toFloat x) ++ "px")
-                    , SA.cy (String.fromFloat (toFloat y) ++ "px")
-                    , SA.r "0.1px"
-                    , SA.fill (color |> Maybe.withDefault Color.gray |> Color.toCssString)
-                    ]
-                    []
-            )
-
-
-viewBoardCells : Board -> List (Svg msg)
-viewBoardCells board =
+viewBoardCells : Float -> Board -> List Canvas.Renderable
+viewBoardCells scale board =
     allCells board.size <|
         \x y ->
             let
@@ -205,53 +187,36 @@ viewBoardCells board =
                 s =
                     toSpiral x y
 
-                color : Color
+                color : IColor
                 color =
                     case Array.get s board.cells of
                         Nothing ->
-                            Color.red
+                            IColor.red
 
                         Just Open ->
-                            Color.white
+                            IColor.white
 
                         Just (Colored c) ->
                             c
             in
-            viewCell s x y color
+            viewCell scale board.size s x y color
 
 
-viewCell : Int -> Int -> Int -> Color -> Svg msg
-viewCell s x y color =
+viewCell : Float -> Int -> Int -> Int -> Int -> IColor -> Canvas.Renderable
+viewCell scale boardSize s x y color =
     let
-        rect =
-            S.rect
-                [ SA.x (String.fromFloat (toFloat x - 0.5) ++ "px")
-                , SA.y (String.fromFloat (toFloat y - 0.5) ++ "px")
-                , SA.width "1px"
-                , SA.height "1px"
-                , SA.fill (Color.toCssString color)
-                ]
-                []
+        cellSize =
+            scale / (toFloat boardSize * 2 + 1)
     in
-    if True then
-        rect
-
-    else
-        S.g []
-            [ rect
-            , S.text_
-                [ SA.x (String.fromFloat (toFloat x) ++ "px")
-                , SA.y (String.fromFloat (toFloat y) ++ "px")
-                , SA.textAnchor "middle"
-                , SA.dominantBaseline "middle"
-                ]
-                [ "({x}, {y}) {s}"
-                    |> String.replace "{x}" (String.fromInt x)
-                    |> String.replace "{y}" (String.fromInt y)
-                    |> String.replace "{s}" (String.fromInt s)
-                    |> S.text
-                ]
-            ]
+    Canvas.shapes
+        [ Canvas.Settings.fill (IColor.toColor color) ]
+        [ Canvas.rect
+            ( toFloat (x + boardSize) * cellSize
+            , toFloat (y + boardSize) * cellSize
+            )
+            cellSize
+            cellSize
+        ]
 
 
 update : Msg -> Model -> Model

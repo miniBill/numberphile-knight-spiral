@@ -4,13 +4,14 @@ import Array exposing (Array)
 import Color exposing (Color)
 import Common
 import FastDict as Dict exposing (Dict)
+import IColor exposing (IColor)
 
 
 type OpenList
-    = OpenList (Dict Int Int) (Dict Int { x : Int, y : Int, color : Maybe Color })
+    = OpenList (Dict IColor Int) (Dict Int { x : Int, y : Int, color : Maybe IColor })
 
 
-toList : OpenList -> List ( Int, { x : Int, y : Int, color : Maybe Color } )
+toList : OpenList -> List ( Int, { x : Int, y : Int, color : Maybe IColor } )
 toList (OpenList _ dict) =
     Dict.toList dict
 
@@ -30,17 +31,17 @@ remove s (OpenList l dict) =
     OpenList l (Dict.remove s dict)
 
 
-get : Int -> OpenList -> Maybe { x : Int, y : Int, color : Maybe Color }
+get : Int -> OpenList -> Maybe { x : Int, y : Int, color : Maybe IColor }
 get s (OpenList _ dict) =
     Dict.get s dict
 
 
-insert : Int -> Int -> Int -> Maybe Color -> OpenList -> OpenList
+insert : Int -> Int -> Int -> Maybe IColor -> OpenList -> OpenList
 insert s x y color (OpenList l dict) =
     OpenList l (Dict.insert s { x = x, y = y, color = color } dict)
 
 
-findOpenCell : Color -> OpenList -> Maybe { s : Int, x : Int, y : Int }
+findOpenCell : IColor -> OpenList -> Maybe { s : Int, x : Int, y : Int }
 findOpenCell forColor (OpenList l dict) =
     let
         from : Int
@@ -91,6 +92,6 @@ findOpenCell forColor (OpenList l dict) =
         dict
 
 
-setMinForColor : Color -> Int -> OpenList -> OpenList
+setMinForColor : IColor -> Int -> OpenList -> OpenList
 setMinForColor c mn (OpenList mdict dict) =
     OpenList (Dict.insert c mn mdict) dict

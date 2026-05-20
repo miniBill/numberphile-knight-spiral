@@ -1,8 +1,4 @@
-module Common exposing (..)
-
-
-a =
-    ()
+module Common exposing (allCells, toSpiral)
 
 
 allCells : Int -> (Int -> Int -> a) -> List a
