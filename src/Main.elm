@@ -162,9 +162,13 @@ view model =
 viewBoard : Board -> Html Msg
 viewBoard board =
     let
+        cellSize : Int
+        cellSize =
+            max 1 (800 // (board.size * 2 + 1))
+
         scale : Float
         scale =
-            800
+            toFloat cellSize * (toFloat board.size * 2 + 1)
     in
     viewBoardCells scale board
         |> (::) (Canvas.shapes [ Canvas.Settings.fill Color.white ] [ Canvas.rect ( 0, 0 ) scale scale ])
