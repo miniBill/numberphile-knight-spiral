@@ -140,10 +140,6 @@ view model =
 
 viewPiece : Int -> Piece -> Html Msg
 viewPiece index piece =
-    let
-        range =
-            3
-    in
     Html.li [ Html.Attributes.style "display" "flex", Html.Attributes.style "gap" "8px" ]
         [ Html.div
             [ Html.Attributes.style "width" "32px"
@@ -152,43 +148,52 @@ viewPiece index piece =
             , Html.Attributes.style "background" (IColor.toCssString piece.color)
             ]
             []
-        , List.range -range range
-            |> List.concatMap
-                (\y ->
-                    List.range -range range
-                        |> List.map
-                            (\x ->
-                                let
-                                    selected =
-                                        List.member ( x, y ) piece.moves
-                                in
-                                Html.button
-                                    [ Html.Attributes.style "width" "16px"
-                                    , Html.Attributes.style "height" "16px"
-                                    , if selected then
-                                        Html.Attributes.style "background-color" "black"
-
-                                      else
-                                        Html.Attributes.style "background-color" "white"
-                                    , Html.Events.onClick
-                                        (if selected then
-                                            Just { piece | moves = List.Extra.remove ( x, y ) piece.moves }
-
-                                         else
-                                            Just { piece | moves = ( x, y ) :: piece.moves }
-                                        )
-                                    ]
-                                    []
-                            )
-                )
-            |> Html.div
-                [ Html.Attributes.style "display" "grid"
-                , Html.Attributes.style "grid-template-columns"
-                    ("repeat(" ++ String.fromInt (range * 2 + 1) ++ ", 16px)")
-                ]
-        , Html.button [ Html.Events.onClick Nothing ] [ Html.text "🗑" ]
+        , pieceGrid piece.moves
+            |> Html.map (\moves -> ChangePiece index (Just { piece | moves = moves }))
+        , Html.button [ Html.Events.onClick (ChangePiece index Nothing) ] [ Html.text "🗑" ]
         ]
-        |> Html.map (ChangePiece index)
+
+
+pieceGrid : List ( Int, Int ) -> Html (List ( Int, Int ))
+pieceGrid moves =
+    let
+        range =
+            3
+    in
+    List.range -range range
+        |> List.concatMap
+            (\y ->
+                List.range -range range
+                    |> List.map
+                        (\x ->
+                            let
+                                selected =
+                                    List.member ( x, y ) moves
+                            in
+                            Html.button
+                                [ Html.Attributes.style "width" "16px"
+                                , Html.Attributes.style "height" "16px"
+                                , if selected then
+                                    Html.Attributes.style "background-color" "black"
+
+                                  else
+                                    Html.Attributes.style "background-color" "white"
+                                , Html.Events.onClick
+                                    (if selected then
+                                        List.Extra.remove ( x, y ) moves
+
+                                     else
+                                        ( x, y ) :: moves
+                                    )
+                                ]
+                                []
+                        )
+            )
+        |> Html.div
+            [ Html.Attributes.style "display" "grid"
+            , Html.Attributes.style "grid-template-columns"
+                ("repeat(" ++ String.fromInt (range * 2 + 1) ++ ", 16px)")
+            ]
 
 
 viewBoard : Board -> Html Msg
