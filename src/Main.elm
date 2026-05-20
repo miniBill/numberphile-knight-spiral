@@ -120,7 +120,11 @@ view model =
         ]
         [ model.pieces
             |> List.indexedMap viewPiece
-            |> Html.ul []
+            |> Html.div
+                [ Html.Attributes.style "display" "flex"
+                , Html.Attributes.style "flex-direction" "column"
+                , Html.Attributes.style "gap" "8px"
+                ]
         , Html.button
             [ Html.Events.onClick
                 (ChangePiece (List.length model.pieces) (Just (knight IColor.black)))
@@ -140,34 +144,67 @@ view model =
 
 viewPiece : Int -> Piece -> Html Msg
 viewPiece index piece =
-    Html.li [ Html.Attributes.style "display" "flex", Html.Attributes.style "gap" "8px" ]
-        [ Html.input
-            [ Html.Attributes.type_ "color"
-            , Html.Attributes.value (IColor.toCssString piece.color)
-            , Html.Events.onInput
-                (\col ->
-                    ChangePiece index
-                        (Just
-                            { piece
-                                | color =
-                                    col
-                                        |> IColor.fromCssString
-                                        |> Maybe.withDefault piece.color
-                            }
-                        )
-                )
+    let
+        colorInput =
+            Html.input
+                [ Html.Attributes.type_ "color"
+                , Html.Attributes.value (IColor.toCssString piece.color)
+                , Html.Events.onInput
+                    (\col ->
+                        { piece
+                            | color =
+                                col
+                                    |> IColor.fromCssString
+                                    |> Maybe.withDefault piece.color
+                        }
+                            |> Just
+                            |> ChangePiece index
+                    )
+                ]
+                []
+
+        presets =
+            [ ( "Knight", knight )
+            , ( "Zebra", zebra )
+            , ( "Dabbaba", dabbaba )
+            , ( "Wazir", wazir )
+            , ( "Ferz", ferz )
             ]
-            []
-        , Html.div
-            [ Html.Attributes.style "width" "32px"
-            , Html.Attributes.style "height" "32px"
-            , Html.Attributes.style "display" "inline-block"
-            , Html.Attributes.style "background" (IColor.toCssString piece.color)
-            ]
-            []
+                |> List.map
+                    (\( label, f ) ->
+                        let
+                            built =
+                                f piece.color
+                        in
+                        Html.div
+                            [ Html.Attributes.style "display" "flex"
+                            , Html.Attributes.style "flex-direction" "column"
+                            , Html.Attributes.style "gap" "8px"
+                            ]
+                            [ Html.button
+                                [ Html.Events.onClick () ]
+                                [ Html.text label ]
+                            , pieceGrid built.moves
+                                |> Html.map (always ())
+                            ]
+                            |> Html.map (\_ -> ChangePiece index (Just built))
+                    )
+    in
+    Html.div
+        [ Html.Attributes.style "display" "flex"
+        , Html.Attributes.style "gap" "8px"
+        , Html.Attributes.style "align-items" "center"
+        ]
+        [ colorInput
         , pieceGrid piece.moves
             |> Html.map (\moves -> ChangePiece index (Just { piece | moves = moves }))
-        , Html.button [ Html.Events.onClick (ChangePiece index Nothing) ] [ Html.text "🗑" ]
+        , Html.div [ Html.Attributes.style "display" "flex", Html.Attributes.style "gap" "8px" ] presets
+        , Html.button
+            [ Html.Events.onClick (ChangePiece index Nothing)
+            , Html.Attributes.style "background" "red"
+            , Html.Attributes.style "color" "white"
+            ]
+            [ Html.text "Delete" ]
         ]
 
 
